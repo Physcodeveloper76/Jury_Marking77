@@ -16,6 +16,9 @@ def create_app():
 
     # Home route - checks session or renders login
     @app.route('/', methods=['GET'])
+    @app.route('/login', methods=['GET'])
+    @app.route('/index.html', methods=['GET'])
+    @app.route('/index', methods=['GET'])
     def home():
         role = session.get('role')
         if role == 'admin':
