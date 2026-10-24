@@ -1,5 +1,6 @@
 import sys
 import os
+from urllib.parse import parse_qs, urlparse
 
 # Add parent directory to sys.path so app and its packages can be imported
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -18,12 +19,36 @@ class VercelPathMiddleware:
         self.wsgi_app = wsgi_app
 
     def __call__(self, environ, start_response):
-        matched = environ.get('HTTP_X_MATCHED_PATH')
-        path = environ.get('PATH_INFO', '')
+        qs = parse_qs(environ.get('QUERY_STRING', ''), keep_blank_values=True)
+        target_path = None
 
-        if matched and matched not in ('/api/index', '/api/index.py', '/api'):
-            environ['PATH_INFO'] = matched
-        elif path in ('/api/index', '/api/index.py', '/api'):
+        # 1. Check if Vercel rewrite provided original path in __path query param
+        if '__path' in qs:
+            val = qs['__path'][0] if qs['__path'] else ''
+            target_path = '/' + val.lstrip('/')
+            # Clean up __path from QUERY_STRING
+            del qs['__path']
+            pairs = []
+            for k, vals in qs.items():
+                for v in vals:
+                    pairs.append(f"{k}={v}")
+            environ['QUERY_STRING'] = '&'.join(pairs)
+        # 2. Check HTTP_X_MATCHED_PATH header
+        elif environ.get('HTTP_X_MATCHED_PATH') and environ.get('HTTP_X_MATCHED_PATH') not in ('/api/index', '/api/index.py', '/api'):
+            target_path = environ.get('HTTP_X_MATCHED_PATH').split('?')[0]
+        # 3. Check RAW_URI or REQUEST_URI if present
+        elif environ.get('RAW_URI'):
+            parsed = urlparse(environ.get('RAW_URI'))
+            if parsed.path and parsed.path not in ('/api/index', '/api/index.py', '/api'):
+                target_path = parsed.path
+        elif environ.get('REQUEST_URI'):
+            parsed = urlparse(environ.get('REQUEST_URI'))
+            if parsed.path and parsed.path not in ('/api/index', '/api/index.py', '/api'):
+                target_path = parsed.path
+
+        if target_path:
+            environ['PATH_INFO'] = target_path
+        elif environ.get('PATH_INFO', '') in ('/api/index', '/api/index.py', '/api', ''):
             environ['PATH_INFO'] = '/'
 
         return self.wsgi_app(environ, start_response)

@@ -6,6 +6,7 @@
     <title>Jury Scoring Portal – Login</title>
     <meta name="description" content="WEB FORGE AI Jury Scoring Portal – Official project evaluation login" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
+    {% include 'style_inline.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
 </head>
 <body class="login-body">
@@ -39,6 +40,71 @@
             </div>
         </div>
     </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const loginForm = document.getElementById('login-form');
+        const loginMsg = document.getElementById('login-message');
+        const toggleBtn = document.getElementById('toggle-pw');
+        const passwordInput = document.getElementById('password');
+
+        const showMessage = (msg, isError = false) => {
+            if (!loginMsg) return;
+            loginMsg.textContent = msg;
+            loginMsg.className = 'message ' + (isError ? 'error' : 'success');
+        };
+
+        if (toggleBtn && passwordInput) {
+            toggleBtn.addEventListener('click', () => {
+                const type = passwordInput.type === 'password' ? 'text' : 'password';
+                passwordInput.type = type;
+                toggleBtn.textContent = type === 'password' ? 'Show' : 'Hide';
+            });
+        }
+
+        if (loginForm) {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+
+                if (!email || !password) {
+                    showMessage('Please fill in all fields', true);
+                    return;
+                }
+
+                const submitBtn = document.getElementById('login-submit');
+                submitBtn.textContent = 'Signing in...';
+                submitBtn.disabled = true;
+
+                try {
+                    const resp = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ email, password })
+                    });
+                    const data = await resp.json();
+
+                    if (!resp.ok) throw (data.error || 'Login failed');
+
+                    showMessage('Login successful! Redirecting...');
+
+                    setTimeout(() => {
+                        if (data.role === 'admin') {
+                            window.location.href = '/admin';
+                        } else {
+                            window.location.href = '/judge';
+                        }
+                    }, 500);
+                } catch (err) {
+                    showMessage(err, true);
+                    submitBtn.textContent = 'Sign In';
+                    submitBtn.disabled = false;
+                }
+            });
+        }
+    });
+    </script>
     <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 </body>
 </html>

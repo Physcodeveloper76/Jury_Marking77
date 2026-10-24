@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, session, redirect, url_for
+from flask import Flask, render_template, session, redirect, url_for, send_from_directory
 from routes.auth import auth_bp
 from routes.judge import judge_bp
 from routes.admin import admin_bp
@@ -7,12 +7,42 @@ from routes.results import results_bp
 
 def create_app():
     base_dir = os.path.abspath(os.path.dirname(__file__))
+    
+    template_folder = os.path.join(base_dir, 'templates')
+    if not os.path.isdir(template_folder):
+        template_folder = os.path.abspath(os.path.join(base_dir, '..', 'templates'))
+        
+    static_folder = os.path.join(base_dir, 'static')
+    if not os.path.isdir(static_folder):
+        static_folder = os.path.abspath(os.path.join(base_dir, '..', 'static'))
+
     app = Flask(
         __name__,
-        template_folder=os.path.join(base_dir, 'templates'),
-        static_folder=os.path.join(base_dir, 'static')
+        template_folder=template_folder,
+        static_folder=static_folder
     )
     app.config.from_object('config.Config')
+
+    # Explicit static handler to guarantee correct MIME headers on all hosting environments
+    @app.route('/static/<path:filename>')
+    def serve_static_asset(filename):
+        mimetype = None
+        lower = filename.lower()
+        if lower.endswith('.css'):
+            mimetype = 'text/css; charset=utf-8'
+        elif lower.endswith('.js'):
+            mimetype = 'application/javascript; charset=utf-8'
+        elif lower.endswith('.png'):
+            mimetype = 'image/png'
+        elif lower.endswith('.jpg') or lower.endswith('.jpeg'):
+            mimetype = 'image/jpeg'
+        elif lower.endswith('.svg'):
+            mimetype = 'image/svg+xml'
+        elif lower.endswith('.json'):
+            mimetype = 'application/json'
+        elif lower.endswith('.woff2'):
+            mimetype = 'font/woff2'
+        return send_from_directory(app.static_folder, filename, mimetype=mimetype)
 
     # Home route - checks session or renders login
     @app.route('/', methods=['GET'])
