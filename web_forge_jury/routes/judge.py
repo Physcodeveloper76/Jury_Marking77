@@ -19,20 +19,21 @@ def dashboard():
     judge_id = session['user_id']
     rounds = db.get_rounds(sb)
     participants = db.get_participants(sb)
+    eval_map = db.get_judge_evaluations_summary(judge_id, sb)
 
     eval_status = []
     for p in participants:
         for r in rounds:
-            ev = db.get_evaluation(judge_id, r['id'], p['id'], sb)
+            st = eval_map.get((p['id'], r['id']), {})
             eval_status.append({
                 'team_id': p['id'],
                 'team_code': p.get('team_code', ''),
                 'team_name': p.get('team_name', ''),
                 'round_id': r['id'],
                 'round_name': r['name'],
-                'status': ev.get('status', 'not started'),
-                'submitted_at': ev.get('submitted_at'),
-                'locked_at': ev.get('locked_at')
+                'status': st.get('status', 'not started'),
+                'submitted_at': st.get('submitted_at'),
+                'locked_at': st.get('locked_at')
             })
 
     return jsonify({

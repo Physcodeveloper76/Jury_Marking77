@@ -105,6 +105,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (statMatrixPending) statMatrixPending.textContent = allResults.length - completed;
     };
 
+    let lastResultsHash = '';
+
     const loadResults = async (isSilent = false) => {
         try {
             const res = await fetch('/api/admin/results', { credentials: 'include' });
@@ -112,9 +114,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.status === 401) { window.location.href = '/'; return; }
                 throw new Error('Failed to load matrix');
             }
-            allResults = await res.json();
-            updateMatrixStats();
-            renderResults();
+            const data = await res.json();
+            const newHash = JSON.stringify(data);
+            if (newHash !== lastResultsHash) {
+                lastResultsHash = newHash;
+                allResults = data;
+                updateMatrixStats();
+                renderResults();
+            }
         } catch (e) {
             if (!isSilent) {
                 resultsTbody.innerHTML = `<tr><td colspan="8" class="error-cell">Error: ${e.message}</td></tr>`;

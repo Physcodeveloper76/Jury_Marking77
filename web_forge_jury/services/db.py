@@ -34,8 +34,13 @@ def get_db_path():
 
 def get_sqlite_conn():
     db_path = get_db_path()
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=60.0)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA busy_timeout=60000;")
+    except Exception:
+        pass
     return conn
 
 def init_local_db():
@@ -483,6 +488,18 @@ def update_criterion(crit_id, data, supabase=None):
     conn.close()
 
 # ==================== EVALUATION & SCORING ====================
+
+def get_judge_evaluations_summary(judge_id, supabase=None):
+    """Fetch all evaluation statuses for a judge in a single indexed query."""
+    conn = get_sqlite_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT participant_id, round_id, status, submitted_at, locked_at FROM evaluation_status WHERE judge_id = ?",
+        (judge_id,)
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return {(r['participant_id'], r['round_id']): dict(r) for r in rows}
 
 def get_evaluation(judge_id, round_id, participant_id, supabase=None):
     conn = get_sqlite_conn()

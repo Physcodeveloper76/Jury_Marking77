@@ -128,8 +128,21 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'criterion-card';
             card.dataset.criterionId = crit.id;
 
-            const existingMark = (sc.marks !== null && sc.marks !== undefined) ? sc.marks : '';
-            const existingRemarks = sc.remarks || '';
+            // Preserve marks: check server first, then sessionStorage if not locked
+            const sessionMarkKey = `jury_mark_${roundId}_${teamId}_${crit.id}`;
+            const sessionRemKey = `jury_rem_${roundId}_${teamId}_${crit.id}`;
+            let existingMark = (sc.marks !== null && sc.marks !== undefined) ? sc.marks : '';
+            if (existingMark === '' && !isLocked) {
+                const cachedMark = sessionStorage.getItem(sessionMarkKey);
+                if (cachedMark !== null && cachedMark !== undefined && cachedMark !== '') {
+                    existingMark = cachedMark;
+                }
+            }
+            let existingRemarks = sc.remarks || '';
+            if (!existingRemarks && !isLocked) {
+                const cachedRem = sessionStorage.getItem(sessionRemKey);
+                if (cachedRem) existingRemarks = cachedRem;
+            }
 
             card.innerHTML = `
                 <div class="criterion-header">
@@ -182,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     hasUnsavedChanges = true;
                     saveStatus.textContent = 'Unsaved changes';
                     saveStatus.classList.add('has-unsaved');
+                    sessionStorage.setItem(`jury_mark_${roundId}_${teamId}_${input.dataset.critId}`, input.value);
                     validateInput(input);
                     calculateLiveTotal();
                 });
@@ -193,6 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     hasUnsavedChanges = true;
                     saveStatus.textContent = 'Unsaved changes';
                     saveStatus.classList.add('has-unsaved');
+                    sessionStorage.setItem(`jury_rem_${roundId}_${teamId}_${input.dataset.critId}`, input.value);
                 });
             });
         }
@@ -386,6 +401,12 @@ document.addEventListener('DOMContentLoaded', () => {
             saveDraftBtn.classList.add('disabled');
             submitFinalBtn.classList.add('disabled');
 
+            // Clear local cached draft marks on successful submit
+            criteriaData.forEach(c => {
+                sessionStorage.removeItem(`jury_mark_${roundId}_${teamId}_${c.id}`);
+                sessionStorage.removeItem(`jury_rem_${roundId}_${teamId}_${c.id}`);
+            });
+
             showMsg('Evaluation submitted and locked successfully! Redirecting to dashboard...');
             setTimeout(() => {
                 window.location.href = '/judge';
@@ -398,27 +419,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     loadEvaluation();
-
-    // Auto-detect when admin reopens or resets this evaluation while page is open
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && !hasUnsavedChanges) {
-            loadEvaluation();
-        }
-    });
-
-    setInterval(() => {
-        if (document.visibilityState === 'visible' && isLocked && !hasUnsavedChanges) {
-            fetch(`/api/evaluations/${roundId}/${teamId}`, { credentials: 'include' })
-                .then(r => r.ok ? r.json() : null)
-                .then(data => {
-                    if (data && data.evaluation) {
-                        const stNow = data.evaluation.status || 'not started';
-                        if (stNow !== 'submitted' && stNow !== 'locked') {
-                            loadEvaluation();
-                        }
-                    }
-                })
-                .catch(() => {});
-        }
-    }, 3500);
 });

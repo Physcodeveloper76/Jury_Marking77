@@ -22,6 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    let lastEvaluationsHash = '';
+
     // Load dashboard data
     const loadDashboard = async (silent = false) => {
         try {
@@ -33,11 +35,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             allRounds = data.rounds || [];
             allParticipants = data.participants || [];
-            allEvaluations = data.evaluations || [];
+            const newEvaluations = data.evaluations || [];
+            const newHash = JSON.stringify(newEvaluations);
 
-            populateRounds(allRounds);
-            updateStats();
-            renderTable();
+            // Only re-render when evaluation data has actually changed
+            if (newHash !== lastEvaluationsHash) {
+                lastEvaluationsHash = newHash;
+                allEvaluations = newEvaluations;
+                populateRounds(allRounds);
+                updateStats();
+                renderTable();
+            }
         } catch (e) {
             if (!silent) {
                 evalTableBody.innerHTML = `<tr><td colspan="5" class="error-cell">Could not load evaluations. <button class="btn btn-sm" onclick="location.reload()">Retry</button></td></tr>`;
