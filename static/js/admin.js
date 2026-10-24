@@ -547,6 +547,81 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // ==================== 6. RESET ALL EVALUATION DATA ====================
+    const openResetAllBtn = document.getElementById('open-reset-all-btn');
+    const modalResetAll = document.getElementById('modal-reset-all');
+    const cancelResetModalBtn = document.getElementById('cancel-reset-modal-btn');
+    const confirmResetAllBtn = document.getElementById('confirm-reset-all-btn');
+    const resetTeamsRosterCheckbox = document.getElementById('reset-teams-roster-checkbox');
+    const resetModalMsg = document.getElementById('reset-modal-msg');
+
+    if (openResetAllBtn && modalResetAll) {
+        openResetAllBtn.addEventListener('click', () => {
+            modalResetAll.classList.remove('hidden');
+            if (resetModalMsg) { resetModalMsg.style.display = 'none'; resetModalMsg.textContent = ''; }
+            if (resetTeamsRosterCheckbox) { resetTeamsRosterCheckbox.checked = false; }
+        });
+
+        if (cancelResetModalBtn) {
+            cancelResetModalBtn.addEventListener('click', () => {
+                modalResetAll.classList.add('hidden');
+            });
+        }
+
+        modalResetAll.addEventListener('click', (e) => {
+            if (e.target === modalResetAll) {
+                modalResetAll.classList.add('hidden');
+            }
+        });
+
+        if (confirmResetAllBtn) {
+            confirmResetAllBtn.addEventListener('click', async () => {
+                confirmResetAllBtn.disabled = true;
+                confirmResetAllBtn.textContent = 'Erasing Data...';
+                const resetTeams = resetTeamsRosterCheckbox ? resetTeamsRosterCheckbox.checked : false;
+
+                try {
+                    const res = await fetch('/api/admin/reset-all', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ reset_teams: resetTeams })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed to reset evaluations');
+
+                    if (resetModalMsg) {
+                        resetModalMsg.textContent = data.message || 'All evaluation data reset successfully!';
+                        resetModalMsg.className = 'message success';
+                        resetModalMsg.style.display = 'block';
+                    }
+
+                    notify(data.message || 'All evaluations erased! Judges dashboard reset to zero.');
+                    
+                    // Reload all active sections
+                    await loadResults();
+                    await loadTeams();
+                    await loadAudit();
+
+                    setTimeout(() => {
+                        modalResetAll.classList.add('hidden');
+                        confirmResetAllBtn.disabled = false;
+                        confirmResetAllBtn.textContent = 'Yes, Erase & Reset All';
+                        if (resetModalMsg) { resetModalMsg.style.display = 'none'; }
+                    }, 900);
+                } catch (err) {
+                    if (resetModalMsg) {
+                        resetModalMsg.textContent = err.message;
+                        resetModalMsg.className = 'message error';
+                        resetModalMsg.style.display = 'block';
+                    }
+                    confirmResetAllBtn.disabled = false;
+                    confirmResetAllBtn.textContent = 'Yes, Erase & Reset All';
+                }
+            });
+        }
+    }
+
     // Initial load
     loadResults();
 });

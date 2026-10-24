@@ -234,3 +234,19 @@ def get_audit_logs():
     if auth_err:
         return auth_err
     return jsonify(db.get_audit_logs(get_supabase()))
+
+@admin_bp.route('/admin/reset-all', methods=['POST'])
+def reset_all_data():
+    auth_err = _require_admin()
+    if auth_err:
+        return auth_err
+    data = request.get_json(silent=True) or {}
+    reset_teams = bool(data.get('reset_teams', False))
+    try:
+        sb = get_supabase()
+        admin_id = session.get('user_id', 'judge_admin')
+        res = db.reset_all_evaluations(admin_id, reset_teams=reset_teams, supabase=sb)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+

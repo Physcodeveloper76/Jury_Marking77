@@ -612,6 +612,58 @@ def reopen_evaluation(admin_id, judge_id, participant_id, round_id, supabase=Non
 
     return {'error': False, 'message': 'Evaluation reopened as draft'}
 
+def reset_all_evaluations(admin_id, reset_teams=False, supabase=None):
+    """
+    Erases all judge scores and evaluation statuses, resetting judges' dashboards to 'not started'.
+    Optionally resets participating teams back to the official 32 seeded teams.
+    """
+    conn = get_sqlite_conn()
+    cur = conn.cursor()
+
+    # 1. Clear all scores and evaluation statuses
+    cur.execute("DELETE FROM scores")
+    cur.execute("DELETE FROM evaluation_status")
+
+    # 2. Optionally reset teams back to the 32 official teams
+    if reset_teams:
+        cur.execute("DELETE FROM participants")
+        now = _now_iso()
+        official_names = [
+            "Neuro-Nova", "OMITRIX", "2 BT", "Rockzz", "Team Nova", "Voxnova",
+            "StrawHats", "Deadline Dodgers", "Team Techno", "Tech Sazzies", "The BlackBox",
+            "100x", "Khatro ke Khiladi", "Dholakpur", "Kasukabe defence force", "Resolve.exe",
+            "Git Update", "Rulers", "Dice", "The Debuggers", "The Aces", "GAME OF CODE",
+            "Semicolonist", "HACKOX1", "Code_with_Errors", "Axiora", "Team vision",
+            "Gyrotex", "Legends", "Triad-X", "Overclock", "BrainByte"
+        ]
+        teams_seed = [
+            (f"team_{i:02d}", f"TEAM-{i:02d}", name, 1, now)
+            for i, name in enumerate(official_names, start=1)
+        ]
+        cur.executemany("INSERT INTO participants (id, team_code, team_name, is_active, created_at) VALUES (?,?,?,?,?)", teams_seed)
+
+    conn.commit()
+    conn.close()
+
+    # 3. Log audit action
+    meta_msg = 'Erased all scores and evaluation statuses (reset to fresh start)'
+    if reset_teams:
+        meta_msg += ' and reset roster to official 32 teams'
+    log_audit_action(admin_id, 'reset_all_data', 'all', 'all', meta_msg, supabase)
+
+    # 4. Best-effort mirror to Supabase
+    if supabase:
+        try:
+            supabase.table('scores').delete().neq('id', '_none_').execute()
+            supabase.table('evaluation_status').delete().neq('id', '_none_').execute()
+        except Exception:
+            pass
+
+    return {
+        'error': False,
+        'message': 'All evaluation data has been erased. Judges dashboards are completely reset to Not Started.'
+    }
+
 # ==================== RESULTS & MATRIX ====================
 
 def get_all_results_matrix(supabase=None):
