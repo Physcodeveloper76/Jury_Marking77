@@ -526,25 +526,22 @@ def get_evaluation(judge_id, round_id, participant_id, supabase=None):
         'scores': scores
     }
 
-def save_evaluation(judge_id, round_id, participant_id, scores_list, status='draft', supabase=None):
+def save_evaluation(judge_id, round_id, participant_id, scores_list, status='submitted', supabase=None):
     now = _now_iso()
     conn = get_sqlite_conn()
     cur = conn.cursor()
-
-    # Check if locked
-    cur.execute(
-        "SELECT status, locked_at FROM evaluation_status WHERE judge_id = ? AND round_id = ? AND participant_id = ?",
-        (judge_id, round_id, participant_id)
-    )
-    existing = cur.fetchone()
-    if existing and existing['status'] in ('submitted', 'locked') and status == 'draft':
-        conn.close()
-        return {'error': True, 'message': 'Evaluation is submitted and locked. Contact Admin to reopen.'}
 
     # Upsert scores
     for item in scores_list:
         cid = item.get('criterion_id')
         marks = item.get('marks')
+        if marks is None or marks == '':
+            marks = 0.0
+        else:
+            try:
+                marks = float(marks)
+            except (ValueError, TypeError):
+                marks = 0.0
         remarks = item.get('remarks', '')
         score_id = f"score_{judge_id}_{participant_id}_{round_id}_{cid}"
 
@@ -555,20 +552,18 @@ def save_evaluation(judge_id, round_id, participant_id, scores_list, status='dra
             DO UPDATE SET marks = excluded.marks, remarks = excluded.remarks, updated_at = excluded.updated_at
         """, (score_id, judge_id, participant_id, round_id, cid, marks, remarks, now))
 
-    # Upsert evaluation status
-    sub_at = now if status == 'submitted' else (existing['submitted_at'] if existing else None)
-    lock_at = now if status == 'submitted' else (existing['locked_at'] if existing else None)
+    # Upsert evaluation status as submitted (Final)
     st_id = f"eval_{judge_id}_{participant_id}_{round_id}"
 
     cur.execute("""
         INSERT INTO evaluation_status (id, judge_id, participant_id, round_id, status, submitted_at, locked_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(judge_id, participant_id, round_id)
-        DO UPDATE SET status = excluded.status,
-                      submitted_at = COALESCE(excluded.submitted_at, evaluation_status.submitted_at),
-                      locked_at = COALESCE(excluded.locked_at, evaluation_status.locked_at),
+        DO UPDATE SET status = 'submitted',
+                      submitted_at = COALESCE(evaluation_status.submitted_at, excluded.submitted_at),
+                      locked_at = excluded.locked_at,
                       updated_at = excluded.updated_at
-    """, (st_id, judge_id, participant_id, round_id, status, sub_at, lock_at, now))
+    """, (st_id, judge_id, participant_id, round_id, 'submitted', now, now, now))
 
     conn.commit()
     conn.close()

@@ -96,7 +96,8 @@ def save_draft_route():
 
     judge_id = session['user_id']
     sb = get_supabase()
-    result = db.save_evaluation(judge_id, round_id, participant_id, scores, status='draft', supabase=sb)
+    # Any mark save is immediately treated as final
+    result = db.save_evaluation(judge_id, round_id, participant_id, scores, status='submitted', supabase=sb)
     if result.get('error'):
         return jsonify(result), 400
     return jsonify(result)
@@ -116,31 +117,35 @@ def submit_evaluation_route():
         return jsonify({'error': 'Missing round_id or participant_id'}), 400
 
     sb = get_supabase()
-    # Validate each score against criterion max marks
     crit_list = db.get_criteria(round_id, sb)
     crit_map = {c['id']: c for c in crit_list}
+    scores_dict = {s.get('criterion_id'): s for s in scores}
 
-    if not scores or len(scores) < len(crit_list):
-        return jsonify({'error': f'All {len(crit_list)} criteria must be scored before submitting.'}), 400
-
-    for s in scores:
-        cid = s.get('criterion_id')
-        marks = s.get('marks')
+    # Ensure every criterion is accounted for; default empty marks to 0.0
+    final_scores = []
+    for c in crit_list:
+        cid = c['id']
+        s_entry = scores_dict.get(cid, {})
+        marks = s_entry.get('marks')
         if marks is None or marks == '':
-            return jsonify({'error': f'Criterion {crit_map.get(cid, {}).get("name", cid)} is missing marks.'}), 400
-        try:
-            m_val = float(marks)
-        except (ValueError, TypeError):
-            return jsonify({'error': f'Marks must be a valid number for criterion {crit_map.get(cid, {}).get("name", cid)}.'}), 400
+            m_val = 0.0
+        else:
+            try:
+                m_val = float(marks)
+            except (ValueError, TypeError):
+                m_val = 0.0
 
-        c_obj = crit_map.get(cid)
-        if c_obj:
-            max_m = c_obj.get('max_marks', 20)
-            if m_val < 0 or m_val > max_m:
-                return jsonify({'error': f'Marks for "{c_obj.get("name")}" must be between 0 and {max_m}.'}), 400
+        max_m = c.get('max_marks', 20)
+        m_val = max(0.0, min(float(max_m), m_val))
+
+        final_scores.append({
+            'criterion_id': cid,
+            'marks': m_val,
+            'remarks': str(s_entry.get('remarks', '') or '')
+        })
 
     judge_id = session['user_id']
-    result = db.save_evaluation(judge_id, round_id, participant_id, scores, status='submitted', supabase=sb)
+    result = db.save_evaluation(judge_id, round_id, participant_id, final_scores, status='submitted', supabase=sb)
     if result.get('error'):
         return jsonify(result), 400
     return jsonify(result)

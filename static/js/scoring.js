@@ -79,34 +79,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const ev = data.evaluation || {};
             const st = ev.status || 'not started';
-            isLocked = (st === 'submitted' || st === 'locked');
+            const hasExisting = (st === 'submitted' || st === 'locked');
 
-            if (isLocked) {
-                statusTag.textContent = 'Status: Submitted & Locked';
+            if (hasExisting) {
+                statusTag.textContent = 'Status: Final Submitted';
                 statusTag.className = 'score-status-tag tag-locked';
-                lockedBanner.classList.remove('hidden');
-                saveDraftBtn.disabled = true;
-                submitFinalBtn.disabled = true;
-                saveDraftBtn.classList.add('disabled');
-                submitFinalBtn.classList.add('disabled');
+                if (submitFinalBtn) submitFinalBtn.innerHTML = '<span>✓</span> Update Final Marks';
+                if (lockedBanner) lockedBanner.classList.add('hidden');
             } else {
-                lockedBanner.classList.add('hidden');
-                saveDraftBtn.disabled = false;
-                submitFinalBtn.disabled = false;
-                saveDraftBtn.classList.remove('disabled');
-                submitFinalBtn.classList.remove('disabled');
-                if (st === 'draft') {
-                    statusTag.textContent = 'Status: Draft Saved';
-                    statusTag.className = 'score-status-tag tag-draft';
-                } else {
-                    statusTag.textContent = 'Status: Not Started';
-                    statusTag.className = 'score-status-tag tag-not-started';
-                }
+                statusTag.textContent = 'Status: Not Started';
+                statusTag.className = 'score-status-tag tag-not-started';
+                if (submitFinalBtn) submitFinalBtn.innerHTML = '<span>✓</span> Submit Final Marks';
+                if (lockedBanner) lockedBanner.classList.add('hidden');
             }
 
             renderCriteria(criteriaData, ev.scores || []);
             calculateLiveTotal();
-            saveStatus.textContent = isLocked ? 'Evaluation is locked' : 'All changes saved';
+            saveStatus.textContent = hasExisting ? 'Final marks saved on server' : 'Enter marks and click Submit';
             hasUnsavedChanges = false;
         } catch (err) {
             console.error(err);
@@ -318,57 +307,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Open Submit Confirmation Modal
-    submitFinalBtn.addEventListener('click', () => {
-        if (isLocked) return;
+    // Direct Submit as Final
+    const executeSubmitFinal = async () => {
+        if (!submitFinalBtn) return;
+        submitFinalBtn.disabled = true;
+        const originalHtml = submitFinalBtn.innerHTML;
+        submitFinalBtn.textContent = 'Saving Final Marks...';
 
-        // Validate all criteria are filled and within bounds
-        let hasError = false;
-        let missingCritName = null;
+        // Auto-clean inputs: if empty, default to 0
         const markInputs = criteriaList.querySelectorAll('.criterion-mark-input');
-
         markInputs.forEach(input => {
-            const cid = input.dataset.critId;
             const val = input.value.trim();
-            const max = parseFloat(input.dataset.max);
-            const crit = criteriaData.find(c => c.id === cid);
-            const critName = crit ? crit.name : 'Criterion';
-
             if (val === '') {
-                hasError = true;
-                if (!missingCritName) missingCritName = critName;
-                input.classList.add('input-error');
-                const errEl = document.getElementById(`err-${cid}`);
-                if (errEl) errEl.textContent = 'Score is required for submission';
-            } else {
-                const num = parseFloat(val);
-                if (isNaN(num) || num < 0 || num > max) {
-                    hasError = true;
-                    if (!missingCritName) missingCritName = critName;
-                    validateInput(input);
-                }
+                input.value = '0';
             }
+            const max = parseFloat(input.dataset.max) || 20;
+            const num = parseFloat(input.value) || 0;
+            if (num > max) input.value = String(max);
+            if (num < 0) input.value = '0';
         });
 
-        if (hasError) {
-            showMsg(`Please enter valid marks for all criteria (missing or invalid: "${missingCritName}").`, true);
-            return;
-        }
-
-        modalTeamName.textContent = teamHeading.textContent;
         calculateLiveTotal();
-        confirmModal.classList.remove('hidden');
-    });
-
-    // Cancel modal
-    modalCancelBtn.addEventListener('click', () => {
-        confirmModal.classList.add('hidden');
-    });
-
-    // Confirm Submit
-    modalConfirmBtn.addEventListener('click', async () => {
-        modalConfirmBtn.disabled = true;
-        modalConfirmBtn.textContent = 'Submitting & Locking...';
 
         const payload = {
             round_id: roundId,
@@ -386,20 +345,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to submit evaluation');
 
-            confirmModal.classList.add('hidden');
             hasUnsavedChanges = false;
-            isLocked = true;
-            statusTag.textContent = 'Status: Submitted & Locked';
+            statusTag.textContent = 'Status: Final Submitted';
             statusTag.className = 'score-status-tag tag-locked';
-            lockedBanner.classList.remove('hidden');
-
-            // Disable all fields
-            const allInputs = criteriaList.querySelectorAll('input, textarea');
-            allInputs.forEach(i => i.disabled = true);
-            saveDraftBtn.disabled = true;
-            submitFinalBtn.disabled = true;
-            saveDraftBtn.classList.add('disabled');
-            submitFinalBtn.classList.add('disabled');
+            submitFinalBtn.innerHTML = '<span>✓</span> Final Marks Saved!';
+            saveStatus.textContent = 'Final marks saved on server';
 
             // Clear local cached draft marks on successful submit
             criteriaData.forEach(c => {
@@ -407,16 +357,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 sessionStorage.removeItem(`jury_rem_${roundId}_${teamId}_${c.id}`);
             });
 
-            showMsg('Evaluation submitted and locked successfully! Redirecting to dashboard...');
+            showMsg('✓ Final marks saved and submitted! Redirecting to dashboard...');
             setTimeout(() => {
                 window.location.href = '/judge';
-            }, 1800);
+            }, 1200);
         } catch (e) {
             showMsg(e.message, true);
-            modalConfirmBtn.disabled = false;
-            modalConfirmBtn.textContent = 'Yes, Submit & Lock';
+            submitFinalBtn.disabled = false;
+            submitFinalBtn.innerHTML = originalHtml;
         }
-    });
+    };
+
+    if (submitFinalBtn) {
+        submitFinalBtn.addEventListener('click', executeSubmitFinal);
+    }
+    if (saveDraftBtn) {
+        saveDraftBtn.addEventListener('click', executeSubmitFinal);
+    }
 
     loadEvaluation();
 });

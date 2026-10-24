@@ -118,16 +118,11 @@ document.addEventListener('DOMContentLoaded', () => {
             let actionText = 'Evaluate';
             let btnClass = 'btn-primary';
 
-            if (status === 'submitted' || status === 'locked') {
+            if (status === 'submitted' || status === 'locked' || status === 'draft') {
                 badgeClass = 'badge-submitted';
-                badgeText = 'Submitted & Locked';
-                actionText = 'View Submission';
+                badgeText = 'Final Submitted';
+                actionText = 'View / Update Marks';
                 btnClass = 'btn-outline';
-            } else if (status === 'draft') {
-                badgeClass = 'badge-draft';
-                badgeText = 'Draft Saved';
-                actionText = 'Continue Draft';
-                btnClass = 'btn-secondary';
             }
 
             const row = document.createElement('tr');
