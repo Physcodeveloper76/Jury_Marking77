@@ -17,7 +17,7 @@
                 Judge: <strong id="judge-display-name">{{ session.display_name }}</strong>
             </span>
             <div class="nav-actions">
-                <a href="/judge" class="btn btn-outline btn-sm">← Back to Dashboard</a>
+                <a href="{{ '/admin' if session.role == 'admin' else '/judge' }}" class="btn btn-outline btn-sm">← Back to Dashboard</a>
                 <button id="logout-btn" class="btn btn-outline btn-sm">Log Out</button>
             </div>
         </div>

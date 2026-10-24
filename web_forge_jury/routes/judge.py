@@ -5,7 +5,7 @@ import services.db as db
 judge_bp = Blueprint('judge', __name__)
 
 def _require_judge():
-    if 'user_id' not in session or session.get('role') not in ('judge', 'judge1', 'judge2'):
+    if 'user_id' not in session or session.get('role') not in ('judge', 'judge1', 'judge2', 'admin'):
         return jsonify({'error': 'Judge access required'}), 401
     return None
 
