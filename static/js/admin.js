@@ -344,6 +344,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Confirm Reopen
     document.getElementById('confirm-reopen-btn').addEventListener('click', async () => {
         if (!pendingReopen) return;
+        const eraseCheckbox = document.getElementById('reopen-erase-marks-checkbox');
+        const eraseMarks = eraseCheckbox ? eraseCheckbox.checked : false;
+        const btn = document.getElementById('confirm-reopen-btn');
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+
         try {
             const res = await fetch('/api/admin/reopen', {
                 method: 'POST',
@@ -352,17 +358,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     judge_id: pendingReopen.judge_id,
                     participant_id: pendingReopen.team_id,
-                    round_id: pendingReopen.round_id
+                    round_id: pendingReopen.round_id,
+                    erase_scores: eraseMarks
                 })
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to reopen');
 
             modalReopen.classList.add('hidden');
-            notify('Evaluation unlocked successfully! Judge can now modify marks.');
-            loadResults();
+            if (eraseCheckbox) eraseCheckbox.checked = false;
+            notify(data.message || (eraseMarks ? 'Evaluation marks erased! Judge can now score this team from scratch.' : 'Evaluation unlocked successfully! Judge can now modify marks.'));
+            await loadResults();
         } catch (err) {
             notify(err.message, true);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Confirm & Reopen';
         }
     });
 

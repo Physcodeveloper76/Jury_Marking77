@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Load dashboard data
-    const loadDashboard = async () => {
+    const loadDashboard = async (silent = false) => {
         try {
             const res = await fetch('/api/judge/dashboard', { credentials: 'include' });
             if (!res.ok) {
@@ -39,12 +39,18 @@ document.addEventListener('DOMContentLoaded', () => {
             updateStats();
             renderTable();
         } catch (e) {
-            evalTableBody.innerHTML = `<tr><td colspan="5" class="error-cell">Could not load evaluations. <button class="btn btn-sm" onclick="location.reload()">Retry</button></td></tr>`;
-            console.error(e);
+            if (!silent) {
+                evalTableBody.innerHTML = `<tr><td colspan="5" class="error-cell">Could not load evaluations. <button class="btn btn-sm" onclick="location.reload()">Retry</button></td></tr>`;
+                console.error(e);
+            }
         }
     };
 
     const populateRounds = (rounds) => {
+        const currentVal = roundSelect.value;
+        if (roundSelect.options.length > 1 && currentVal) {
+            return; // Already populated and user has an active selection
+        }
         roundSelect.innerHTML = '<option value="">All Rounds</option>';
         rounds.forEach(r => {
             const opt = document.createElement('option');
@@ -52,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
             opt.textContent = r.name;
             roundSelect.appendChild(opt);
         });
+        if (currentVal) roundSelect.value = currentVal;
     };
 
     const updateStats = () => {
@@ -238,5 +245,13 @@ document.addEventListener('DOMContentLoaded', () => {
     roundSelect.addEventListener('change', renderTable);
     teamSearch.addEventListener('input', renderTable);
 
+    // Initial load
     loadDashboard();
+
+    // Auto-refresh: poll every 3.5 seconds in background so judge dashboard instantly reflects admin resets / reopens
+    setInterval(() => {
+        if (document.visibilityState === 'visible') {
+            loadDashboard(true);
+        }
+    }, 3500);
 });

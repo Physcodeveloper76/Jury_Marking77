@@ -586,31 +586,45 @@ def save_evaluation(judge_id, round_id, participant_id, scores_list, status='dra
 
     return {'error': False, 'message': 'Saved successfully', 'status': status}
 
-def reopen_evaluation(admin_id, judge_id, participant_id, round_id, supabase=None):
+def reopen_evaluation(admin_id, judge_id, participant_id, round_id, erase_scores=False, supabase=None):
     now = _now_iso()
     conn = get_sqlite_conn()
     cur = conn.cursor()
-    cur.execute("""
-        UPDATE evaluation_status
-        SET status = 'draft', locked_at = NULL, updated_at = ?
-        WHERE judge_id = ? AND participant_id = ? AND round_id = ?
-    """, (now, judge_id, participant_id, round_id))
+
+    if erase_scores:
+        cur.execute("DELETE FROM scores WHERE judge_id = ? AND participant_id = ? AND round_id = ?",
+                    (judge_id, participant_id, round_id))
+        cur.execute("DELETE FROM evaluation_status WHERE judge_id = ? AND participant_id = ? AND round_id = ?",
+                    (judge_id, participant_id, round_id))
+        msg = f'Evaluation scores erased and reset to Not Started for team {participant_id}'
+    else:
+        cur.execute("""
+            UPDATE evaluation_status
+            SET status = 'draft', locked_at = NULL, updated_at = ?
+            WHERE judge_id = ? AND participant_id = ? AND round_id = ?
+        """, (now, judge_id, participant_id, round_id))
+        msg = 'Evaluation reopened as draft'
+
     conn.commit()
     conn.close()
 
-    log_audit_action(admin_id, 'reopen_evaluation', 'evaluation_status', f"{judge_id}:{participant_id}:{round_id}", 'Reopened by Admin', supabase)
+    log_audit_action(admin_id, 'reopen_evaluation', 'evaluation_status', f"{judge_id}:{participant_id}:{round_id}", msg, supabase)
 
     if supabase:
         try:
-            supabase.table('evaluation_status').update({
-                'status': 'draft',
-                'locked_at': None,
-                'updated_at': now
-            }).eq('judge_id', judge_id).eq('participant_id', participant_id).eq('round_id', round_id).execute()
+            if erase_scores:
+                supabase.table('scores').delete().eq('judge_id', judge_id).eq('participant_id', participant_id).eq('round_id', round_id).execute()
+                supabase.table('evaluation_status').delete().eq('judge_id', judge_id).eq('participant_id', participant_id).eq('round_id', round_id).execute()
+            else:
+                supabase.table('evaluation_status').update({
+                    'status': 'draft',
+                    'locked_at': None,
+                    'updated_at': now
+                }).eq('judge_id', judge_id).eq('participant_id', participant_id).eq('round_id', round_id).execute()
         except Exception:
             pass
 
-    return {'error': False, 'message': 'Evaluation reopened as draft'}
+    return {'error': False, 'message': msg}
 
 def reset_all_evaluations(admin_id, reset_teams=False, supabase=None):
     """

@@ -324,17 +324,22 @@
         <div class="modal-box">
             <h3 class="modal-title">Reopen Evaluation for Editing</h3>
             <p class="modal-text">
-                Are you sure you want to unlock this evaluation?
-                The status will be reset to <strong>Draft</strong>, allowing the judge to update and re-submit scores.
-                This action is audited.
+                Unlock this evaluation so the judge can re-evaluate.
+                You can choose to keep existing marks as draft or completely erase previous marks.
             </p>
             <div class="modal-summary">
                 <div>Judge: <strong id="reopen-judge-name">—</strong></div>
                 <div>Team: <strong id="reopen-team-name">—</strong></div>
             </div>
+            <div style="margin: 1rem 0; padding: 0.75rem; background: var(--color-bg); border: 1px solid var(--color-border);">
+                <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.88rem; font-weight: 500;">
+                    <input type="checkbox" id="reopen-erase-marks-checkbox" style="width: 17px; height: 17px; accent-color: var(--color-danger);" />
+                    <span><strong>Erase all previous marks</strong> (resets back to Not Started / 0 marks so judge enters fresh marks)</span>
+                </label>
+            </div>
             <div class="modal-actions">
                 <button type="button" class="btn btn-outline modal-close-btn">Cancel</button>
-                <button type="button" id="confirm-reopen-btn" class="btn btn-primary">Yes, Reopen as Draft</button>
+                <button type="button" id="confirm-reopen-btn" class="btn btn-primary">Confirm & Reopen</button>
             </div>
         </div>
     </div>

@@ -89,12 +89,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 submitFinalBtn.disabled = true;
                 saveDraftBtn.classList.add('disabled');
                 submitFinalBtn.classList.add('disabled');
-            } else if (st === 'draft') {
-                statusTag.textContent = 'Status: Draft Saved';
-                statusTag.className = 'score-status-tag tag-draft';
             } else {
-                statusTag.textContent = 'Status: Not Started';
-                statusTag.className = 'score-status-tag tag-not-started';
+                lockedBanner.classList.add('hidden');
+                saveDraftBtn.disabled = false;
+                submitFinalBtn.disabled = false;
+                saveDraftBtn.classList.remove('disabled');
+                submitFinalBtn.classList.remove('disabled');
+                if (st === 'draft') {
+                    statusTag.textContent = 'Status: Draft Saved';
+                    statusTag.className = 'score-status-tag tag-draft';
+                } else {
+                    statusTag.textContent = 'Status: Not Started';
+                    statusTag.className = 'score-status-tag tag-not-started';
+                }
             }
 
             renderCriteria(criteriaData, ev.scores || []);
@@ -391,4 +398,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     loadEvaluation();
+
+    // Auto-detect when admin reopens or resets this evaluation while page is open
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && !hasUnsavedChanges) {
+            loadEvaluation();
+        }
+    });
+
+    setInterval(() => {
+        if (document.visibilityState === 'visible' && isLocked && !hasUnsavedChanges) {
+            fetch(`/api/evaluations/${roundId}/${teamId}`, { credentials: 'include' })
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (data && data.evaluation) {
+                        const stNow = data.evaluation.status || 'not started';
+                        if (stNow !== 'submitted' && stNow !== 'locked') {
+                            loadEvaluation();
+                        }
+                    }
+                })
+                .catch(() => {});
+        }
+    }, 3500);
 });

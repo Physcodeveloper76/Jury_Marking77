@@ -171,12 +171,13 @@ def reopen_eval():
     data = request.get_json(silent=True) or {}
     judge_id = data.get('judge_id')
     round_id = data.get('round_id')
-    participant_id = data.get('participant_id')
+    participant_id = data.get('participant_id') or data.get('team_id')
+    erase_scores = bool(data.get('erase_scores', False))
     if not judge_id or not round_id or not participant_id:
         return jsonify({'error': 'Missing judge_id, round_id, or participant_id'}), 400
 
     sb = get_supabase()
-    result = db.reopen_evaluation(session['user_id'], judge_id, participant_id, round_id, sb)
+    result = db.reopen_evaluation(session['user_id'], judge_id, participant_id, round_id, erase_scores=erase_scores, supabase=sb)
     return jsonify(result)
 
 @admin_bp.route('/admin/export', methods=['GET'])
