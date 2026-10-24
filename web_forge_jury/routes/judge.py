@@ -143,3 +143,44 @@ def submit_evaluation_route():
     if result.get('error'):
         return jsonify(result), 400
     return jsonify(result)
+
+# -------------------- On-Spot Team Addition --------------------
+@judge_bp.route('/teams/next-code', methods=['GET'])
+def get_next_code():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    sb = get_supabase()
+    next_code = db.get_next_team_code(sb)
+    return jsonify({'next_code': next_code})
+
+@judge_bp.route('/teams/add', methods=['POST'])
+@judge_bp.route('/participants/add', methods=['POST'])
+def add_team_on_spot():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json(silent=True) or {}
+    team_name = (data.get('team_name') or '').strip()
+    team_code = (data.get('team_code') or '').strip()
+
+    if not team_name:
+        return jsonify({'error': 'Team name is required'}), 400
+
+    try:
+        sb = get_supabase()
+        team_info = db.add_participant({'team_code': team_code, 'team_name': team_name}, sb)
+        db.log_audit_action(
+            session['user_id'],
+            'create_participant_on_spot',
+            'participants',
+            team_info['id'],
+            f"On-spot registered team {team_info['team_code']}: {team_info['team_name']}",
+            sb
+        )
+        return jsonify({
+            'message': f"Team {team_info['team_code']} ({team_info['team_name']}) added successfully!",
+            'team': team_info
+        }), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+

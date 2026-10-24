@@ -46,8 +46,13 @@
         <main class="main">
             <section class="card">
                 <div class="card-header">
-                    <h2>Assigned Evaluations</h2>
-                    <span class="card-hint">Filter by round or search by team</span>
+                    <div>
+                        <h2>Assigned Evaluations</h2>
+                        <span class="card-hint">Filter by round or search by team</span>
+                    </div>
+                    <button id="open-add-team-btn" class="btn primary btn-sm">
+                        <span style="font-weight: bold; margin-right: 4px;">+</span> Add Team (On Spot)
+                    </button>
                 </div>
 
                 <div class="controls-row">
@@ -83,6 +88,30 @@
                 </div>
             </section>
         </main>
+    </div>
+
+    <!-- Add Team On The Spot Modal -->
+    <div id="add-team-modal" class="modal-backdrop hidden">
+        <div class="modal-box">
+            <h3 class="modal-title">Add Team On The Spot</h3>
+            <p class="modal-text">Register a new team into the competition. The team will immediately appear in your evaluation list across all rounds.</p>
+            <form id="add-team-form">
+                <div class="field" style="margin-bottom: 1.25rem;">
+                    <label for="modal-team-name">Team Name *</label>
+                    <input type="text" id="modal-team-name" placeholder="e.g. Cyber Innovators" required autocomplete="off" />
+                </div>
+                <div class="field" style="margin-bottom: 1.25rem;">
+                    <label for="modal-team-code">Team Code (Optional)</label>
+                    <input type="text" id="modal-team-code" placeholder="Loading next code..." autocomplete="off" />
+                    <span style="display: block; font-size: 0.75rem; color: var(--color-muted-grey); margin-top: 0.35rem;">Leave empty to auto-generate the next sequential team code.</span>
+                </div>
+                <div id="add-team-msg" class="message"></div>
+                <div class="modal-actions">
+                    <button type="button" id="close-add-team-modal" class="btn btn-outline">Cancel</button>
+                    <button type="submit" id="submit-add-team-btn" class="btn primary">Add Team Now</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script src="{{ url_for('static', filename='js/judge.js') }}"></script>

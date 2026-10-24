@@ -131,6 +131,110 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    // ==================== ON-SPOT ADD TEAM MODAL ====================
+    const openAddTeamBtn = document.getElementById('open-add-team-btn');
+    const addTeamModal = document.getElementById('add-team-modal');
+    const closeAddTeamModal = document.getElementById('close-add-team-modal');
+    const addTeamForm = document.getElementById('add-team-form');
+    const modalTeamName = document.getElementById('modal-team-name');
+    const modalTeamCode = document.getElementById('modal-team-code');
+    const addTeamMsg = document.getElementById('add-team-msg');
+    const submitAddTeamBtn = document.getElementById('submit-add-team-btn');
+
+    const showAddTeamMessage = (msg, isError = false) => {
+        if (!addTeamMsg) return;
+        addTeamMsg.textContent = msg;
+        addTeamMsg.className = 'message ' + (isError ? 'error' : 'success');
+        addTeamMsg.style.display = 'block';
+    };
+
+    if (openAddTeamBtn && addTeamModal) {
+        openAddTeamBtn.addEventListener('click', async () => {
+            addTeamModal.classList.remove('hidden');
+            if (addTeamMsg) { addTeamMsg.style.display = 'none'; addTeamMsg.textContent = ''; }
+            modalTeamName.value = '';
+            modalTeamCode.value = '';
+            modalTeamCode.placeholder = 'Fetching next code...';
+            modalTeamName.focus();
+
+            try {
+                const res = await fetch('/api/teams/next-code', { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.next_code) {
+                        modalTeamCode.placeholder = `e.g. ${data.next_code} (auto-assigned if blank)`;
+                    }
+                }
+            } catch (e) {
+                modalTeamCode.placeholder = 'e.g. TEAM-33 (auto-assigned)';
+            }
+        });
+
+        if (closeAddTeamModal) {
+            closeAddTeamModal.addEventListener('click', () => {
+                addTeamModal.classList.add('hidden');
+            });
+        }
+
+        // Close on background click
+        addTeamModal.addEventListener('click', (e) => {
+            if (e.target === addTeamModal) {
+                addTeamModal.classList.add('hidden');
+            }
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !addTeamModal.classList.contains('hidden')) {
+                addTeamModal.classList.add('hidden');
+            }
+        });
+
+        if (addTeamForm) {
+            addTeamForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const teamName = modalTeamName.value.trim();
+                const teamCode = modalTeamCode.value.trim();
+
+                if (!teamName) {
+                    showAddTeamMessage('Team name is required', true);
+                    return;
+                }
+
+                submitAddTeamBtn.disabled = true;
+                submitAddTeamBtn.textContent = 'Adding Team...';
+
+                try {
+                    const res = await fetch('/api/teams/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ team_name: teamName, team_code: teamCode })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed to add team');
+
+                    showAddTeamMessage(data.message || 'Team added successfully!');
+                    submitAddTeamBtn.textContent = '✓ Added!';
+
+                    // Reload dashboard to update table & stats
+                    await loadDashboard();
+
+                    setTimeout(() => {
+                        addTeamModal.classList.add('hidden');
+                        submitAddTeamBtn.disabled = false;
+                        submitAddTeamBtn.textContent = 'Add Team Now';
+                        if (addTeamMsg) { addTeamMsg.style.display = 'none'; }
+                    }, 800);
+                } catch (err) {
+                    showAddTeamMessage(err.message, true);
+                    submitAddTeamBtn.disabled = false;
+                    submitAddTeamBtn.textContent = 'Add Team Now';
+                }
+            });
+        }
+    }
+
     roundSelect.addEventListener('change', renderTable);
     teamSearch.addEventListener('input', renderTable);
 

@@ -324,14 +324,44 @@ def get_participants(supabase=None):
     conn.close()
     return rows
 
+def get_next_team_code(supabase=None):
+    """Calculates the next sequential TEAM-XX code based on existing participants."""
+    participants = get_participants(supabase)
+    highest_num = 0
+    import re
+    for p in participants:
+        code = (p.get('team_code') or '').strip().upper()
+        m = re.match(r'^TEAM-(\d+)$', code)
+        if m:
+            num = int(m.group(1))
+            if num > highest_num:
+                highest_num = num
+    next_num = highest_num + 1 if highest_num > 0 else (len(participants) + 1)
+    return f"TEAM-{next_num:02d}"
+
 def add_participant(data, supabase=None):
     new_id = f"team_{uuid.uuid4().hex[:8]}"
     now = _now_iso()
+    
+    # Auto-generate or format team code
+    team_code = (data.get('team_code') or '').strip().upper()
+    if not team_code:
+        team_code = get_next_team_code(supabase)
+
+    team_name = (data.get('team_name') or '').strip()
+    if not team_name:
+        team_name = f"Team {team_code}"
+
     conn = get_sqlite_conn()
     cur = conn.cursor()
+    # Check if team_code is already taken; if so, append random suffix
+    cur.execute("SELECT id FROM participants WHERE team_code = ? COLLATE NOCASE", (team_code,))
+    if cur.fetchone():
+        team_code = f"{team_code}-{uuid.uuid4().hex[:3].upper()}"
+
     cur.execute(
         "INSERT INTO participants (id, team_code, team_name, is_active, created_at) VALUES (?, ?, ?, 1, ?)",
-        (new_id, data['team_code'].upper(), data['team_name'], now)
+        (new_id, team_code, team_name, now)
     )
     conn.commit()
     conn.close()
@@ -340,15 +370,15 @@ def add_participant(data, supabase=None):
         try:
             supabase.table('participants').insert({
                 'id': new_id,
-                'team_code': data['team_code'].upper(),
-                'team_name': data['team_name'],
+                'team_code': team_code,
+                'team_name': team_name,
                 'is_active': True,
                 'created_at': now
             }).execute()
         except Exception:
             pass
 
-    return new_id
+    return {'id': new_id, 'team_code': team_code, 'team_name': team_name}
 
 def update_participant(part_id, data, supabase=None):
     conn = get_sqlite_conn()

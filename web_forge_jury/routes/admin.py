@@ -63,13 +63,17 @@ def create_participant():
     if auth_err:
         return auth_err
     data = request.get_json(silent=True) or {}
-    if not data.get('team_code') or not data.get('team_name'):
-        return jsonify({'error': 'Team code and team name are required'}), 400
+    if not data.get('team_name'):
+        return jsonify({'error': 'Team name is required'}), 400
     try:
         sb = get_supabase()
-        new_id = db.add_participant(data, sb)
-        db.log_audit_action(session['user_id'], 'create_participant', 'participants', new_id, f"Added team {data.get('team_code')}", sb)
-        return jsonify({'message': 'Participant created', 'id': new_id})
+        team_info = db.add_participant(data, sb)
+        db.log_audit_action(session['user_id'], 'create_participant', 'participants', team_info['id'], f"Added team {team_info['team_code']}: {team_info['team_name']}", sb)
+        return jsonify({
+            'message': f"Team {team_info['team_code']} created successfully",
+            'id': team_info['id'],
+            'team': team_info
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 

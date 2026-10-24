@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Modal Triggers
     const addTeamBtn = document.getElementById('add-team-btn');
+    const addTeamOnSpotAdminBtn = document.getElementById('add-team-on-spot-admin-btn');
     const addJudgeBtn = document.getElementById('add-judge-btn');
     const addCriterionBtn = document.getElementById('add-criterion-btn');
 
@@ -259,16 +260,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const openAddTeam = async () => {
+        modalTeam.classList.remove('hidden');
+        const codeInput = document.getElementById('new-team-code');
+        const nameInput = document.getElementById('new-team-name');
+        nameInput.value = '';
+        codeInput.value = '';
+        codeInput.placeholder = 'Fetching next code...';
+        nameInput.focus();
+        try {
+            const res = await fetch('/api/teams/next-code', { credentials: 'include' });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.next_code) {
+                    codeInput.placeholder = `e.g. ${data.next_code} (auto-assigned if blank)`;
+                }
+            }
+        } catch (e) {
+            codeInput.placeholder = 'e.g. TEAM-33 (auto-assigned)';
+        }
+    };
+
     if (addTeamBtn) {
-        addTeamBtn.addEventListener('click', () => {
-            modalTeam.classList.remove('hidden');
-        });
+        addTeamBtn.addEventListener('click', openAddTeam);
+    }
+    if (addTeamOnSpotAdminBtn) {
+        addTeamOnSpotAdminBtn.addEventListener('click', openAddTeam);
     }
 
     formAddTeam.addEventListener('submit', async (e) => {
         e.preventDefault();
         const code = document.getElementById('new-team-code').value.trim();
         const name = document.getElementById('new-team-name').value.trim();
+        if (!name) {
+            notify('Team name is required', true);
+            return;
+        }
         try {
             const res = await fetch('/api/admin/participants', {
                 method: 'POST',
@@ -280,7 +307,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) throw new Error(data.error || 'Failed to create team');
             modalTeam.classList.add('hidden');
             formAddTeam.reset();
-            notify(`Team ${code} created successfully!`);
+            const createdCode = (data.team && data.team.team_code) || code || 'New';
+            notify(`Team ${createdCode} created successfully!`);
             loadTeams();
             loadResults();
         } catch (err) {
