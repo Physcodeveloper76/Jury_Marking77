@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Administrator Dashboard – WEB FORGE AI</title>
+    <meta name="description" content="Official administrative scoring portal for WEB FORGE AI" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+    <nav class="top-bar">
+        <div class="top-bar-inner">
+            <span class="brand">WEB FORGE AI</span>
+            <span class="nav-info">
+                Admin: <strong>{{ session.display_name }}</strong>
+            </span>
+            <button id="logout-btn" class="btn btn-outline btn-sm">Log Out</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header class="page-header admin-page-header">
+            <div class="header-main">
+                <span class="eyebrow">Administration & Governance</span>
+                <h1>Administrator Dashboard</h1>
+                <p class="subtitle">Oversee evaluations, examine live judge score totals, manage criteria and teams, reopen locked evaluations, and export official CSV reports.</p>
+            </div>
+            <div class="header-action">
+                <button id="export-csv-btn" class="btn btn-primary">
+                    <span class="btn-icon">⬇</span> Download Results CSV
+                </button>
+            </div>
+        </header>
+
+        <!-- Admin Navigation Tabs -->
+        <nav class="admin-tabs" role="tablist">
+            <button class="tab-btn active" data-tab="tab-results">Results & Matrix</button>
+            <button class="tab-btn" data-tab="tab-teams">Teams (Participants)</button>
+            <button class="tab-btn" data-tab="tab-judges">Judges</button>
+            <button class="tab-btn" data-tab="tab-criteria">Rounds & Criteria</button>
+            <button class="tab-btn" data-tab="tab-audit">Audit Log</button>
+        </nav>
+
+        <div id="admin-notification" class="message"></div>
+
+        <main class="main admin-tab-content">
+            <!-- TAB 1: RESULTS & MATRIX -->
+            <section id="tab-results" class="tab-pane active">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Scoring Matrix & Leaderboard</h2>
+                            <span class="card-hint">Real-time aggregate scores from Judge 1 and Judge 2</span>
+                        </div>
+                        <div class="card-controls">
+                            <input type="text" id="matrix-search" placeholder="Filter by team or round..." class="input-sm" />
+                            <button id="refresh-results-btn" class="btn btn-sm btn-outline">↻ Refresh</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table" id="results-table">
+                            <thead>
+                                <tr>
+                                    <th>Round</th>
+                                    <th>Team Code</th>
+                                    <th>Team Name</th>
+                                    <th>Judge 1</th>
+                                    <th>Judge 2</th>
+                                    <th>Average</th>
+                                    <th>Status</th>
+                                    <th style="text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="8" class="loading-cell">Loading results matrix...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: TEAMS (PARTICIPANTS) -->
+            <section id="tab-teams" class="tab-pane hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Participating Teams</h2>
+                            <span class="card-hint">Manage active competition teams</span>
+                        </div>
+                        <button id="add-team-btn" class="btn btn-sm btn-primary">+ Add New Team</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table" id="teams-table">
+                            <thead>
+                                <tr>
+                                    <th>Team Code</th>
+                                    <th>Team Name</th>
+                                    <th>Status</th>
+                                    <th style="text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="4" class="loading-cell">Loading teams...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: JUDGES -->
+            <section id="tab-judges" class="tab-pane hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Judge Accounts</h2>
+                            <span class="card-hint">Official evaluator credentials and permissions</span>
+                        </div>
+                        <button id="add-judge-btn" class="btn btn-sm btn-primary">+ Add Judge</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table" id="judges-table">
+                            <thead>
+                                <tr>
+                                    <th>Username / Email</th>
+                                    <th>Display Name</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th style="text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="5" class="loading-cell">Loading judges...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: ROUNDS & CRITERIA -->
+            <section id="tab-criteria" class="tab-pane hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h2>Evaluation Criteria</h2>
+                            <span class="card-hint">Configured maximum marks, weights, and descriptions</span>
+                        </div>
+                        <button id="add-criterion-btn" class="btn btn-sm btn-primary">+ Add Criterion</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table" id="criteria-table">
+                            <thead>
+                                <tr>
+                                    <th>Round</th>
+                                    <th>Order</th>
+                                    <th>Criterion Name</th>
+                                    <th>Max Marks</th>
+                                    <th>Weight</th>
+                                    <th>Description</th>
+                                    <th style="text-align: right;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="7" class="loading-cell">Loading criteria...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 5: AUDIT LOG -->
+            <section id="tab-audit" class="tab-pane hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h2>System Audit Trail</h2>
+                            <span class="card-hint">Chronological log of administrative actions and reopenings</span>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table" id="audit-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Actor ID</th>
+                                    <th>Action</th>
+                                    <th>Entity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="4" class="loading-cell">Loading audit logs...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MODAL: ADD TEAM -->
+    <div id="modal-team" class="modal-backdrop hidden">
+        <div class="modal-box">
+            <h3 class="modal-title">Add Participating Team</h3>
+            <form id="form-add-team">
+                <div class="field">
+                    <label for="new-team-code">Team Code (e.g. TEAM-06)</label>
+                    <input type="text" id="new-team-code" placeholder="TEAM-06" required />
+                </div>
+                <div class="field">
+                    <label for="new-team-name">Team Name</label>
+                    <input type="text" id="new-team-name" placeholder="Quantum Coders" required />
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline modal-close-btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Team</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD JUDGE -->
+    <div id="modal-judge" class="modal-backdrop hidden">
+        <div class="modal-box">
+            <h3 class="modal-title">Add Judge Account</h3>
+            <form id="form-add-judge">
+                <div class="field">
+                    <label for="new-judge-user">Username / Email</label>
+                    <input type="text" id="new-judge-user" placeholder="judge3" required />
+                </div>
+                <div class="field">
+                    <label for="new-judge-name">Display Name</label>
+                    <input type="text" id="new-judge-name" placeholder="Dr. Claude Shannon" required />
+                </div>
+                <div class="field">
+                    <label for="new-judge-role">Role</label>
+                    <select id="new-judge-role">
+                        <option value="judge">Judge</option>
+                        <option value="admin">Administrator</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="new-judge-pw">Initial Password</label>
+                    <input type="password" id="new-judge-pw" placeholder="Enter secure password" required />
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline modal-close-btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Judge</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD / EDIT CRITERION -->
+    <div id="modal-criterion" class="modal-backdrop hidden">
+        <div class="modal-box">
+            <h3 class="modal-title">Add Evaluation Criterion</h3>
+            <form id="form-add-criterion">
+                <div class="field">
+                    <label for="crit-round">Round</label>
+                    <select id="crit-round" required>
+                        <option value="round_ml">Round A: Machine Learning (ML) Model</option>
+                        <option value="round_web">Round B: Web Development</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="crit-name">Criterion Name</label>
+                    <input type="text" id="crit-name" placeholder="e.g. Robustness & Security" required />
+                </div>
+                <div class="field">
+                    <label for="crit-desc">Evaluation Focus / Description</label>
+                    <textarea id="crit-desc" rows="2" placeholder="Describe the evaluation expectations..."></textarea>
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="crit-max">Max Marks</label>
+                        <input type="number" id="crit-max" value="20" min="1" max="100" required />
+                    </div>
+                    <div class="field">
+                        <label for="crit-weight">Weight (1.0 = standard)</label>
+                        <input type="number" id="crit-weight" value="1.0" step="0.1" min="0.1" max="5.0" required />
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline modal-close-btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Criterion</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIRM REOPEN -->
+    <div id="modal-reopen" class="modal-backdrop hidden">
+        <div class="modal-box">
+            <h3 class="modal-title">Reopen Evaluation for Editing</h3>
+            <p class="modal-text">
+                Are you sure you want to unlock this evaluation?
+                The status will be reset to <strong>Draft</strong>, allowing the judge to update and re-submit scores.
+                This action is audited.
+            </p>
+            <div class="modal-summary">
+                <div>Judge: <strong id="reopen-judge-name">—</strong></div>
+                <div>Team: <strong id="reopen-team-name">—</strong></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline modal-close-btn">Cancel</button>
+                <button type="button" id="confirm-reopen-btn" class="btn btn-primary">Yes, Reopen as Draft</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

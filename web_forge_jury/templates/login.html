@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jury Scoring Portal – Login</title>
+    <meta name="description" content="WEB FORGE AI Jury Scoring Portal – Official project evaluation login" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body class="login-body">
+    <div class="login-container">
+        <div class="login-hero">
+            <div class="hero-content">
+                <h1 class="hero-title">WEB FORGE AI</h1>
+                <p class="hero-tagline">Jury Scoring Portal</p>
+                <div class="hero-decoration"></div>
+            </div>
+        </div>
+        <div class="login-panel">
+            <div class="login-panel-inner">
+                <h2 class="login-heading">Sign In</h2>
+                <p class="login-subtext">Enter your credentials to access the evaluation portal</p>
+                <form id="login-form" class="login-form">
+                    <div class="field">
+                        <label for="email">Username or Email</label>
+                        <input type="text" id="email" name="email" placeholder="e.g. judge1" required autocomplete="username" />
+                    </div>
+                    <div class="field">
+                        <label for="password">Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="password" name="password" placeholder="Enter password" required autocomplete="current-password" />
+                            <button type="button" id="toggle-pw" class="pw-toggle">Show</button>
+                        </div>
+                    </div>
+                    <button type="submit" id="login-submit" class="btn primary full-width">Sign In</button>
+                    <div id="login-message" class="message"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+</body>
+</html>

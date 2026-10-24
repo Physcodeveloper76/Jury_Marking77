@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Judge Dashboard – WEB FORGE AI</title>
+    <meta name="description" content="Judge evaluation dashboard for WEB FORGE AI Jury Portal" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+    <nav class="top-bar">
+        <div class="top-bar-inner">
+            <span class="brand">WEB FORGE AI</span>
+            <span class="nav-info">
+                Judge: <strong>{{ session.display_name }}</strong>
+            </span>
+            <button id="logout-btn" class="btn btn-outline btn-sm">Log Out</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header class="page-header">
+            <div class="header-main">
+                <span class="eyebrow">Scoring Portal</span>
+                <h1>Judge Dashboard</h1>
+                <p class="subtitle">Select an evaluation round to view teams, save drafts, and submit official scores.</p>
+            </div>
+            <div class="dashboard-stats-row" id="judge-stats">
+                <div class="stat-box">
+                    <span class="stat-number" id="stat-total-teams">0</span>
+                    <span class="stat-label">Teams</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-number" id="stat-completed">0</span>
+                    <span class="stat-label">Completed</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-number" id="stat-in-progress">0</span>
+                    <span class="stat-label">In Progress</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <section class="card">
+                <div class="card-header">
+                    <h2>Assigned Evaluations</h2>
+                    <span class="card-hint">Filter by round or search by team</span>
+                </div>
+
+                <div class="controls-row">
+                    <div class="field control-field">
+                        <label for="round-select">Evaluation Round</label>
+                        <select id="round-select">
+                            <option value="">All Rounds</option>
+                        </select>
+                    </div>
+                    <div class="field control-field search-field">
+                        <label for="team-search">Search Teams</label>
+                        <input type="text" id="team-search" placeholder="Search by team code or name..." />
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table" id="eval-table">
+                        <thead>
+                            <tr>
+                                <th>Round</th>
+                                <th>Team Code</th>
+                                <th>Team Name</th>
+                                <th>Evaluation Status</th>
+                                <th style="text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="5" class="loading-cell">Loading evaluations...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/judge.js') }}"></script>
+</body>
+</html>

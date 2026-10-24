@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evaluation Scoring – WEB FORGE AI</title>
+    <meta name="description" content="Evaluation scoring form for WEB FORGE AI Jury Portal" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+    <nav class="top-bar">
+        <div class="top-bar-inner">
+            <span class="brand">WEB FORGE AI</span>
+            <span class="nav-info">
+                Judge: <strong id="judge-display-name">{{ session.display_name }}</strong>
+            </span>
+            <div class="nav-actions">
+                <a href="/judge" class="btn btn-outline btn-sm">← Back to Dashboard</a>
+                <button id="logout-btn" class="btn btn-outline btn-sm">Log Out</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header class="page-header scoring-header">
+            <div class="header-main">
+                <span class="eyebrow" id="round-badge">Loading Round...</span>
+                <h1 id="team-heading">Evaluating Team...</h1>
+                <p class="subtitle" id="team-subtext">Loading details...</p>
+            </div>
+            <div class="header-score-card">
+                <div class="score-label">Current Total</div>
+                <div class="score-value"><span id="live-total">0</span> <span class="score-max" id="live-max">/ 100</span></div>
+                <div class="score-status-tag" id="status-tag">Status: Draft</div>
+            </div>
+        </header>
+
+        <!-- Locked Banner (hidden by default) -->
+        <div id="locked-banner" class="alert-banner hidden">
+            <div class="alert-icon">🔒</div>
+            <div class="alert-content">
+                <strong>Evaluation Locked & Submitted</strong>
+                <p>This evaluation has already been finalized and locked. Marks cannot be modified unless an Administrator reopens it.</p>
+            </div>
+        </div>
+
+        <main class="main">
+            <form id="scoring-form">
+                <div id="criteria-list" class="criteria-list">
+                    <div class="loading-state">Loading criteria and existing scores...</div>
+                </div>
+
+                <div class="scoring-actions-bar">
+                    <div class="action-status" id="save-status">All changes saved</div>
+                    <div class="action-buttons">
+                        <button type="button" id="save-draft-btn" class="btn btn-secondary">Save Draft</button>
+                        <button type="button" id="submit-final-btn" class="btn btn-primary">Submit Final Evaluation</button>
+                    </div>
+                </div>
+                <div id="scoring-msg" class="message"></div>
+            </form>
+        </main>
+    </div>
+
+    <!-- Confirmation Modal for Submit -->
+    <div id="confirm-modal" class="modal-backdrop hidden">
+        <div class="modal-box">
+            <h3 class="modal-title">Confirm Final Submission</h3>
+            <p class="modal-text">
+                Are you sure you want to submit this evaluation?
+                Once submitted, your marks will be <strong>locked</strong> and can only be reopened by an Administrator.
+            </p>
+            <div class="modal-summary">
+                <div>Team: <strong id="modal-team-name">—</strong></div>
+                <div>Calculated Total: <strong id="modal-total-score">0 / 100</strong></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="modal-cancel-btn" class="btn btn-outline">Cancel</button>
+                <button type="button" id="modal-confirm-btn" class="btn btn-primary">Yes, Submit & Lock</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.ROUND_ID = "{{ round_id }}";
+        window.TEAM_ID = "{{ team_id }}";
+    </script>
+    <script src="{{ url_for('static', filename='js/scoring.js') }}"></script>
+</body>
+</html>
