@@ -86,7 +86,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ==================== 1. RESULTS & MATRIX ====================
-    const loadResults = async () => {
+    const statMatrixTotal = document.getElementById('stat-matrix-total');
+    const statMatrixCompleted = document.getElementById('stat-matrix-completed');
+    const statMatrixInProgress = document.getElementById('stat-matrix-in-progress');
+    const statMatrixPending = document.getElementById('stat-matrix-pending');
+
+    const updateMatrixStats = () => {
+        if (!statMatrixTotal) return;
+        statMatrixTotal.textContent = allResults.length;
+        let completed = 0;
+        let inProgress = 0;
+        allResults.forEach(r => {
+            if (r.completion_status === 'Complete') completed++;
+            else if (r.completion_status === 'In Progress') inProgress++;
+        });
+        if (statMatrixCompleted) statMatrixCompleted.textContent = completed;
+        if (statMatrixInProgress) statMatrixInProgress.textContent = inProgress;
+        if (statMatrixPending) statMatrixPending.textContent = allResults.length - completed;
+    };
+
+    const loadResults = async (isSilent = false) => {
         try {
             const res = await fetch('/api/admin/results', { credentials: 'include' });
             if (!res.ok) {
@@ -94,9 +113,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error('Failed to load matrix');
             }
             allResults = await res.json();
+            updateMatrixStats();
             renderResults();
         } catch (e) {
-            resultsTbody.innerHTML = `<tr><td colspan="8" class="error-cell">Error: ${e.message}</td></tr>`;
+            if (!isSilent) {
+                resultsTbody.innerHTML = `<tr><td colspan="8" class="error-cell">Error: ${e.message}</td></tr>`;
+            }
         }
     };
 
@@ -123,25 +145,57 @@ document.addEventListener('DOMContentLoaded', () => {
             const j1 = (row.judges && row.judges[0]) || {};
             const j2 = (row.judges && row.judges[1]) || {};
 
-            const j1Text = j1.total !== null && j1.total !== undefined ? `${j1.total} <small>(${j1.status})</small>` : `<span class="text-muted">—</span>`;
-            const j2Text = j2.total !== null && j2.total !== undefined ? `${j2.total} <small>(${j2.status})</small>` : `<span class="text-muted">—</span>`;
+            const formatJudgeCell = (j) => {
+                if (!j || j.total === null || j.total === undefined) {
+                    return `<span class="text-muted">—</span>`;
+                }
+                const isSub = j.status === 'submitted' || j.status === 'locked';
+                const bClass = isSub ? 'badge-submitted' : 'badge-draft';
+                return `
+                    <button class="btn btn-sm btn-outline view-scorecard-btn"
+                            data-round-id="${row.round_id}"
+                            data-team-id="${row.team_id}"
+                            data-judge-id="${j.judge_id}"
+                            data-judge-name="${j.judge_name}"
+                            title="Click to view detailed criteria scorecard"
+                            style="padding: 2px 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                        <strong>${j.total}</strong>
+                        <span class="badge ${bClass}" style="font-size: 0.65rem; padding: 1px 4px;">${j.status}</span>
+                    </button>
+                `;
+            };
+
+            const j1Html = formatJudgeCell(j1);
+            const j2Html = formatJudgeCell(j2);
             const avgText = row.average_total !== null && row.average_total !== undefined ? `<strong>${row.average_total}</strong> <small>/ ${row.max_marks || 100}</small>` : `<span class="text-muted">—</span>`;
 
             let badgeClass = 'badge-not-started';
             if (row.completion_status === 'Complete') badgeClass = 'badge-submitted';
             else if (row.completion_status === 'In Progress') badgeClass = 'badge-draft';
 
-            // Determine if reopen is possible (if any judge has submitted)
-            let reopenHtml = '';
+            let actionsHtml = '';
             row.judges.forEach(j => {
+                if (j.total !== null && j.total !== undefined) {
+                    actionsHtml += `
+                        <button class="btn btn-sm btn-outline view-scorecard-btn"
+                                data-round-id="${row.round_id}"
+                                data-team-id="${row.team_id}"
+                                data-judge-id="${j.judge_id}"
+                                data-judge-name="${j.judge_name}"
+                                style="margin-bottom: 2px; padding: 3px 7px; font-size: 0.78rem;">
+                            🔍 View Scores
+                        </button>
+                    `;
+                }
                 if (j.status === 'submitted' || j.status === 'locked') {
-                    reopenHtml += `
+                    actionsHtml += `
                         <button class="btn btn-sm btn-outline reopen-btn"
                                 data-judge-id="${j.judge_id}"
                                 data-judge-name="${j.judge_name}"
                                 data-team-id="${row.team_id}"
                                 data-team-name="${row.team_code} - ${row.team_name}"
-                                data-round-id="${row.round_id}">
+                                data-round-id="${row.round_id}"
+                                style="margin-bottom: 2px; padding: 3px 7px; font-size: 0.78rem;">
                             Unlock ${j.judge_code || 'Judge'}
                         </button>
                     `;
@@ -152,21 +206,129 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td><span class="round-tag">${row.round_name}</span></td>
                 <td><strong class="team-code-tag">${row.team_code}</strong></td>
                 <td><span class="team-name-label">${row.team_name}</span></td>
-                <td>${j1Text}</td>
-                <td>${j2Text}</td>
+                <td>${j1Html}</td>
+                <td>${j2Html}</td>
                 <td>${avgText}</td>
                 <td><span class="badge ${badgeClass}">${row.completion_status}</span></td>
-                <td style="text-align: right;">${reopenHtml || '<span class="text-muted">None</span>'}</td>
+                <td style="text-align: right;">
+                    <div style="display: flex; gap: 0.35rem; justify-content: flex-end; flex-wrap: wrap;">
+                        ${actionsHtml || '<span class="text-muted">—</span>'}
+                    </div>
+                </td>
             `;
             resultsTbody.appendChild(tr);
         });
     };
 
-    if (matrixSearch) matrixSearch.addEventListener('input', renderResults);
-    if (refreshBtn) refreshBtn.addEventListener('click', loadResults);
+    // Scorecard Modal elements
+    const modalScorecard = document.getElementById('modal-scorecard');
+    const closeScorecardBtn = document.getElementById('close-scorecard-btn');
+    const scorecardRoundBadge = document.getElementById('scorecard-round-badge');
+    const scorecardTeamTitle = document.getElementById('scorecard-team-title');
+    const scorecardJudgeInfo = document.getElementById('scorecard-judge-info');
+    const scorecardTotalMarks = document.getElementById('scorecard-total-marks');
+    const scorecardStatusBadge = document.getElementById('scorecard-status-badge');
+    const scorecardCriteriaTbody = document.getElementById('scorecard-criteria-tbody');
+    const scorecardTimestamps = document.getElementById('scorecard-timestamps');
+    const scorecardActionExtra = document.getElementById('scorecard-action-extra');
 
-    // Reopen click
+    if (closeScorecardBtn && modalScorecard) {
+        closeScorecardBtn.addEventListener('click', () => modalScorecard.classList.add('hidden'));
+        modalScorecard.addEventListener('click', (e) => {
+            if (e.target === modalScorecard) modalScorecard.classList.add('hidden');
+        });
+    }
+
+    const openScorecard = async (roundId, teamId, judgeId, judgeName) => {
+        if (!modalScorecard) return;
+        modalScorecard.classList.remove('hidden');
+        scorecardCriteriaTbody.innerHTML = '<tr><td colspan="3" class="loading-cell">Loading detailed criteria scorecard...</td></tr>';
+        scorecardActionExtra.innerHTML = '';
+
+        try {
+            const res = await fetch(`/api/evaluations/${roundId}/${teamId}?judge_id=${judgeId}`, { credentials: 'include' });
+            if (!res.ok) throw new Error('Failed to load evaluation details');
+            const data = await res.json();
+            const ev = data.evaluation || {};
+            const crits = data.criteria || [];
+            const part = data.participant || {};
+            const rnd = data.round || {};
+
+            scorecardRoundBadge.textContent = rnd.name || roundId;
+            scorecardTeamTitle.textContent = `${part.team_code || ''} – ${part.team_name || ''}`;
+            scorecardJudgeInfo.textContent = `Evaluator: ${judgeName || 'Judge'}`;
+
+            const scoresMap = {};
+            let totalGiven = 0;
+            (ev.scores || []).forEach(s => {
+                scoresMap[s.criterion_id] = s;
+                if (s.marks !== null && s.marks !== undefined) totalGiven += Number(s.marks);
+            });
+
+            const maxRound = crits.reduce((acc, c) => acc + (c.max_marks || 20), 0) || 100;
+            scorecardTotalMarks.innerHTML = `${totalGiven} <span style="font-size: 1rem; color: var(--color-muted-grey); font-weight: 400;">/ ${maxRound}</span>`;
+
+            const isSub = ev.status === 'submitted' || ev.status === 'locked';
+            scorecardStatusBadge.textContent = isSub ? 'Submitted & Locked' : (ev.status === 'draft' ? 'Draft Saved' : 'Not Started');
+            scorecardStatusBadge.className = `badge ${isSub ? 'badge-submitted' : (ev.status === 'draft' ? 'badge-draft' : 'badge-not-started')}`;
+
+            const subTime = ev.submitted_at ? new Date(ev.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'None';
+            const lockTime = ev.locked_at ? new Date(ev.locked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'None';
+            scorecardTimestamps.textContent = `Submitted: ${subTime} | Locked: ${lockTime}`;
+
+            // Render criteria table
+            scorecardCriteriaTbody.innerHTML = '';
+            crits.forEach((c, idx) => {
+                const s = scoresMap[c.id] || {};
+                const marksVal = s.marks !== null && s.marks !== undefined ? s.marks : '—';
+                const pct = s.marks !== null && s.marks !== undefined ? Math.min(100, Math.round((s.marks / (c.max_marks || 20)) * 100)) : 0;
+                const remarksText = s.remarks ? `<div style="font-size: 0.78rem; color: var(--color-muted-grey); margin-top: 3px;"><em>"${s.remarks}"</em></div>` : '';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div style="font-weight: 600;">${idx + 1}. ${c.name}</div>
+                        <div style="font-size: 0.76rem; color: var(--color-muted-grey);">${c.description || ''}</div>
+                        ${remarksText}
+                    </td>
+                    <td style="text-align: center; font-weight: 500;">${c.max_marks || 20}</td>
+                    <td style="text-align: right;">
+                        <span style="font-size: 1.05rem; font-weight: 700; color: var(--color-black);">${marksVal}</span>
+                        <div style="width: 100%; background: #e2e8f0; height: 4px; margin-top: 4px;">
+                            <div style="width: ${pct}%; background: var(--color-black); height: 100%;"></div>
+                        </div>
+                    </td>
+                `;
+                scorecardCriteriaTbody.appendChild(tr);
+            });
+
+            // Action button inside scorecard: unlock if submitted
+            if (isSub) {
+                const unlockBtn = document.createElement('button');
+                unlockBtn.className = 'btn btn-outline btn-sm';
+                unlockBtn.textContent = 'Unlock Evaluation for Editing';
+                unlockBtn.addEventListener('click', () => {
+                    modalScorecard.classList.add('hidden');
+                    pendingReopen = { judge_id: judgeId, team_id: teamId, round_id: roundId };
+                    document.getElementById('reopen-judge-name').textContent = judgeName;
+                    document.getElementById('reopen-team-name').textContent = `${part.team_code} – ${part.team_name}`;
+                    modalReopen.classList.remove('hidden');
+                });
+                scorecardActionExtra.appendChild(unlockBtn);
+            }
+        } catch (err) {
+            scorecardCriteriaTbody.innerHTML = `<tr><td colspan="3" class="error-cell">${err.message}</td></tr>`;
+        }
+    };
+
+    // Table clicks: handle view scorecard & reopen
     resultsTbody.addEventListener('click', (e) => {
+        const viewBtn = e.target.closest('.view-scorecard-btn');
+        if (viewBtn) {
+            openScorecard(viewBtn.dataset.roundId, viewBtn.dataset.teamId, viewBtn.dataset.judgeId, viewBtn.dataset.judgeName);
+            return;
+        }
+
         const btn = e.target.closest('.reopen-btn');
         if (!btn) return;
         pendingReopen = {
@@ -621,6 +783,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
+
+    // Live Auto-Refresh: auto-poll for new judge submissions every 3.5 seconds
+    setInterval(() => {
+        if (document.visibilityState === 'visible') {
+            const resultsTab = document.getElementById('tab-results');
+            if (resultsTab && !resultsTab.classList.contains('hidden')) {
+                loadResults(true); // silent update without error flashing
+            }
+        }
+    }, 3500);
 
     // Initial load
     loadResults();

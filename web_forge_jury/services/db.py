@@ -700,9 +700,14 @@ def get_all_results_matrix(supabase=None):
     for r in status_rows:
         status_map[(r['judge_id'], r['participant_id'], r['round_id'])] = r['status']
 
-    # Get judges to identify judge1 and judge2
-    cur.execute("SELECT id, email, display_name FROM judges WHERE role != 'admin' ORDER BY email ASC")
-    judge_list = [dict(r) for r in cur.fetchall()]
+    # Get judges to display in matrix (include admin if admin has evaluated)
+    cur.execute("SELECT id, email, display_name, role FROM judges ORDER BY role DESC, email ASC")
+    all_judges = [dict(r) for r in cur.fetchall()]
+    admin_has_scores = any(r['judge_id'] == 'judge_admin' for r in score_rows)
+    if admin_has_scores:
+        judge_list = all_judges
+    else:
+        judge_list = [j for j in all_judges if j['role'] != 'admin']
 
     matrix = []
     for t in teams:
